@@ -1,0 +1,7 @@
+version: "2"
+domain: microsoft.com
+repo: github.com/Azure/statustest
+resources:
+- group: azure
+  version: v1
+  kind: StatusTester
