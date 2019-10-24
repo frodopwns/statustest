@@ -16,7 +16,6 @@ limitations under the License.
 package controllers
 
 import (
-	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -25,6 +24,7 @@ import (
 	azurev1 "github.com/Azure/statustest/api/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -51,9 +51,7 @@ var _ = BeforeSuite(func(done Done) {
 	logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
 
 	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "bases")},
-	}
+	testEnv = &envtest.Environment{}
 
 	var err error
 	cfg, err = testEnv.Start()
@@ -65,9 +63,25 @@ var _ = BeforeSuite(func(done Done) {
 
 	// +kubebuilder:scaffold:scheme
 
-	K8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:             scheme.Scheme,
+		MetricsBindAddress: "0",
+	})
 	Expect(err).ToNot(HaveOccurred())
+
+	K8sClient = k8sManager.GetClient()
 	Expect(K8sClient).ToNot(BeNil())
+
+	err = (&StatusTesterReconciler{
+		Client: K8sClient,
+		Log:    ctrl.Log.WithName("controllers").WithName("StatusTester"),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	go func() {
+		err = k8sManager.Start(ctrl.SetupSignalHandler())
+		Expect(err).ToNot(HaveOccurred())
+	}()
 
 	close(done)
 }, 60)

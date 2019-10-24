@@ -58,7 +58,7 @@ var _ = Describe("Status tester Controller", func() {
 				_ = K8sClient.Get(ctx, resourceNamespacedName, resourceInstance)
 				log.Println(resourceInstance.Status)
 				return resourceInstance.Status.Provisioned == true
-			}, time.Second*30,
+			}, time.Second*10,
 			).Should(BeTrue())
 
 			// delete rg
